@@ -26,14 +26,34 @@ BIG_BLIND = 20
 # ----------------------------------------------------------------------------
 
 SUITS = {"s": "\u2660", "h": "\u2665", "d": "\u2666", "c": "\u2663"}
+RED_SUITS = {"h", "d"}
+ESC = "\x1b"  # ANSI escape for colored code blocks (desktop/web only)
 
 
 def card_str(card_int) -> str:
-    """Render a treys card int as e.g. 'K\u2665'."""
+    """Render a treys card int as plain text, e.g. 'K\u2665'."""
     s = Card.int_to_str(card_int)  # e.g. 'Kh'
     rank, suit = s[0], s[1]
     rank = "10" if rank == "T" else rank
     return f"{rank}{SUITS[suit]}"
+
+
+def card_token(card_int) -> str:
+    """Render a card as an ANSI-colored token: red for hearts/diamonds,
+    white for spades/clubs. Renders in color on desktop/web; mobile shows
+    plain monospace, where the suit shapes still distinguish the cards."""
+    s = Card.int_to_str(card_int)
+    rank, suit = s[0], s[1]
+    rank = "10" if rank == "T" else rank
+    color = "31" if suit in RED_SUITS else "37"
+    return f"{ESC}[1;{color}m{rank}{SUITS[suit]}{ESC}[0m"
+
+
+def cards_block(cards, empty="\u2014 no cards yet \u2014") -> str:
+    """Wrap a list of cards in an ANSI code block for colored display."""
+    if not cards:
+        return empty
+    return "```ansi\n" + "  ".join(card_token(c) for c in cards) + "\n```"
 
 
 class Player:
@@ -365,7 +385,7 @@ games = {}  # channel_id -> Game
 
 
 def board_str(game):
-    return "  ".join(card_str(c) for c in game.board) if game.board else "— no cards yet —"
+    return cards_block(game.board)
 
 
 def live_pot(game):
@@ -403,7 +423,7 @@ def table_embed(game, footer=None):
 
 def cards_embed(player):
     e = discord.Embed(title="Your hole cards", color=0x3498db)
-    e.description = "  ".join(card_str(c) for c in player.hole) or "no cards"
+    e.description = cards_block(player.hole, empty="no cards")
     return e
 
 
